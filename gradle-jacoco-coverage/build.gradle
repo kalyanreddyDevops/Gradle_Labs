@@ -1,0 +1,112 @@
+plugins {
+    id "org.sonarqube" version "2.6.2"
+    id 'org.springframework.boot' version '2.0.4.RELEASE'
+    id  'java'
+    id 'idea'
+    id 'jacoco'
+    id "io.spring.dependency-management" version "1.0.6.RELEASE"
+    id "com.dorongold.task-tree" version "1.3"
+    id "project-report"
+    id 'maven'
+    id 'maven-publish'
+
+}
+
+version = '1.0'
+group = 'com.rts'
+
+sourceCompatibility = 1.8
+targetCompatibility = 1.8
+
+def publishName = 'gradle-project'
+
+repositories {
+    mavenCentral()
+    maven {
+       url "http://localhost:8081/nexus/content/groups/public"
+       credentials {
+         username "admin"
+         password "admin123"
+       }
+   }    
+}
+
+dependencies {
+    compile ("org.springframework.boot:spring-boot-starter-web")
+    compile("org.springframework.boot:spring-boot-starter-thymeleaf")
+    testCompile('org.springframework.boot:spring-boot-starter-test')
+}
+
+
+test {
+    ignoreFailures = true
+    enabled= true
+}
+jacocoTestReport {
+    group = "Reporting"
+    dependsOn 'test'
+    reports {
+        xml.enabled true
+        csv.enabled false
+        html.destination file("${buildDir}/reports/coverage")
+    }
+}
+
+sonarqube {
+    properties {
+        property 'sonar.scm.disabled' , true
+        property 'sonar.projectName', 'Gradle-Jacoco-Coverage'
+		property 'sonar.host.url', 'http://localhost:9000'
+        property 'sonar.login', 'b5e1e1bd0fe08929e91296f7777911a9de51e571'
+		//property 'sonar.login', 'balaji'
+        //property 'sonar.password', 'password'
+    }
+}
+
+
+
+
+
+bootJar {
+    baseName = publishName
+    version =  version
+	classifier = 'boot'
+ manifest {
+    attributes 'Main-Class': 'com.rts.DemoStarterApplication'
+  }
+}
+
+
+// make sure bootRepackage is included in task graph
+project.tasks.findAll { it.name.startsWith("publish") } .each { it.dependsOn assemble }
+
+
+publishing {
+       publications {
+        maven(MavenPublication) {
+            artifactId publishName
+            groupId 'com.rts'
+            version project.version
+            // "boot" jar
+            artifact ("$buildDir/libs/$publishName-$version-boot.jar") {
+                classifier = 'boot'
+            }
+        }
+    }
+    repositories {
+        maven {
+            credentials {
+                username 'admin'
+                password 'admin123'
+            }
+            if (!project.version.endsWith('-SNAPSHOT')) {
+                url "http://localhost:8081/repository/maven-releases"
+            } else {
+                url "http://localhost:8081/repository/maven-snapshots"
+            }
+        }
+    }
+}
+
+
+
